@@ -1,0 +1,87 @@
+body {
+  font-family: sans-serif;
+  background-color: aquamarine;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+p {
+  margin: 0px;
+}
+
+#change-container {
+  display: flex;
+  flex-direction: column;
+  margin-top: 20px;
+}
+
+button {
+  margin: 10px;
+  background: #1d9e75;
+  border: none;
+  border-radius: 5px;
+  padding: 5px;
+  cursor: pointer;
+  color: white;
+}
+
+button:hover {
+  background: #177557;
+}
+
+.email-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: text;
+}
+
+.email-box:focus-within {
+  border-color: #4a7bd0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 10px;
+  background: #e8eefb;
+  border-radius: 999px;
+  font-size: 14px;
+}
+
+.pill button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 6px;
+  border-radius: 50%;
+}
+
+.pill button:hover {
+  background: #cdd8f3;
+}
+
+.email-box input {
+  flex: 1;
+  min-width: 200px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  padding: 4px;
+}
+
+.email-error {
+  color: #b3261e;
+  font-size: 13px;
+  margin: 4px 0 0;
+}
