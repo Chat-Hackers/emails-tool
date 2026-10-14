@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 import { getRoomEvents, generateSummary } from './requests';
-import { getEmailsAll, insertEmail } from './duckdb';
+import { getEmailsAll } from './duckdb';
 import { MatrixEvent, ChatCompletionResponse, EmailPref, Frequency, Email } from '../types';
 import { DAILY, WEEKLY, MONTHLY } from '../types';
 

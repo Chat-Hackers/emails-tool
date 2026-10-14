@@ -1,9 +1,10 @@
 import "./App.css";
 import { useSearchParams } from "react-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { getEmails, updateEmails } from "./requests";
+import { type Frequency } from "../types";
 
 const FREQUENCIES = ["daily", "weekly", "monthly"] as const;
-type Frequency = (typeof FREQUENCIES)[number];
 type EmailLists = Record<Frequency, string[]>;
 
 const SEPARATORS = /[\s,;]+/; // spaces, newlines, commas (and semicolons)
@@ -100,26 +101,63 @@ export default function App() {
     weekly: [],
     monthly: [],
   });
+  const [status, setStatus] = useState("");
 
-  // TODO: replace with requests once they exist (load on mount, post, delete)
+  useEffect(() => {
+    if (!roomId) return;
+    let cancelled = false; // ignore the response if the room changed meanwhile
+
+    getEmails(roomId)
+      .then((result) => {
+        if (cancelled) return;
+        setEmails({
+          daily: result.daily ?? [],
+          weekly: result.weekly ?? [],
+          monthly: result.monthly ?? [],
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) setStatus("Couldn't load email addresses.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  // optimistic update: show the change immediately, roll back if the PUT fails
+  async function save(frequency: Frequency, next: string[]) {
+    if (!roomId) return;
+    const previous = emails[frequency];
+
+    setEmails((prev) => ({ ...prev, [frequency]: next }));
+    setStatus("");
+
+    try {
+      await updateEmails(roomId, next, frequency);
+    } catch (err) {
+      console.error(err);
+      setEmails((prev) => ({ ...prev, [frequency]: previous }));
+      setStatus("Couldn't save your changes. Please try again.");
+    }
+  }
+
   function addEmails(frequency: Frequency, addresses: string[]) {
-    setEmails((prev) => ({
-      ...prev,
-      [frequency]: [...new Set([...prev[frequency], ...addresses])], // dedupes within a list
-    }));
+    save(frequency, [...new Set([...emails[frequency], ...addresses])]);
   }
 
   function removeEmail(frequency: Frequency, address: string) {
-    setEmails((prev) => ({
-      ...prev,
-      [frequency]: prev[frequency].filter((a) => a !== address),
-    }));
+    save(
+      frequency,
+      emails[frequency].filter((a) => a !== address),
+    );
   }
 
   return (
     <>
       <h1>Email Digests</h1>
-      {roomId && <p>Room: {roomId}</p>}
+      {status && <p className="email-error">{status}</p>}
 
       {FREQUENCIES.map((frequency) => (
         <EmailBox

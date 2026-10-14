@@ -3,8 +3,10 @@ import express from "express";
 import * as fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { getEmailsByRoomId, insertEmail, removeEmail } from './duckdb';
+import { getEmailsByRoomId, replaceEmails } from './duckdb';
 import beginSchedule from "./scheduler";
+import { DAILY, WEEKLY, MONTHLY, FREQUENCIES } from '../types';
+import { type Frequency } from '../types';
 
 const { emails_secret } = process.env;
 
@@ -39,59 +41,68 @@ async function start() {
     res.sendFile(htmlPath);
   })
 
-  /*
- app.post("/", async (req, res) => {
-   const { event } = req.body;
+  app.get("/api/emails", async (req, res) => {
+    const roomId = req.query.roomId;
+    if (typeof roomId !== "string" || !roomId) {
+      return res.status(400).json({ error: "roomId is required" });
+    }
 
-   let response: { message?: string } | undefined = {};
+    try {
+      const rows = (await getEmailsByRoomId(roomId)) as {
+        room_id: string;
+        email_address: string;
+        frequency: Frequency;
+      }[];
 
-   if (event.type === "m.room.message")
-     response = await handleMessage(event);
+      const lists: Record<Frequency, string[]> = { [DAILY]: [], [WEEKLY]: [], [MONTHLY]: [] };
+      for (const row of rows) {
+        lists[row.frequency]?.push(row.email_address);
+      }
+      res.json(lists);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to load emails" });
+    }
+  });
 
-   console.log(response)
+  app.put("/api/emails", async (req, res) => {
+    const { roomId, emails, frequency } = req.body ?? {};
+    const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 
-   res.send({ success: true, response });
- });
- 
-   app.get("/api/events", async (req, res) => {
-     const { roomId } = req.query;
- 
-     const eventUrls = await getEventsByRoomId(roomId as string);
-     const events = (
-       await Promise.all(
-         eventUrls.map(async (event) => {
-           const eventDetails = await tryGetEvent(event.event_url as string);
-           if (!eventDetails) return null;
-           return {
-             name: eventDetails.name,
-             startDate: eventDetails.startDate,
-             roomId: event.room_id as string,
-             url: event.event_url as string
-           };
-         })
-       )
-     ).filter((event) => event !== null).filter(event => event.roomId === roomId);
- 
-     res.send(events);
-   })*/
+    if (typeof roomId !== "string" || !roomId) {
+      return res.status(400).json({ error: "roomId is required" });
+    }
+    if (!FREQUENCIES.includes(frequency)) {
+      return res.status(400).json({ error: `frequency must be one of ${FREQUENCIES.join(", ")}` });
+    }
+    if (!Array.isArray(emails) || !emails.every((e) => typeof e === "string")) {
+      return res.status(400).json({ error: "emails must be an array of strings" });
+    }
 
-  app.post("/api/event", async (req, res) => {
-    const { roomId } = req.query;
-    const { url } = req.body;
+    // normalise and dedupe, then reject anything invalid
+    const cleaned = [...new Set(emails.map((e: string) => e.trim().toLowerCase()))];
+    const invalid = cleaned.filter((e) => !EMAIL_RE.test(e));
+    if (invalid.length) {
+      return res.status(400).json({ error: "Invalid email addresses", invalid });
+    }
 
-    //await insertEvent(roomId as string, url);
+    try {
+      await withWriteLock(() => replaceEmails(roomId, cleaned, frequency));
+      res.json({ roomId, frequency, emails: cleaned });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to save emails" });
+    }
+  });
 
-    res.send({ success: true })
-  })
-
-  app.delete("/api/event", async (req, res) => {
-    const { roomId } = req.query;
-    const { url } = req.body;
-
-    //await removeEvent(roomId as string, url);
-
-    res.send({ success: true })
-  })
+  // DuckDB transactions are per connection, so two overlapping PUTs sharing one
+  // connection would interleave their BEGIN/COMMIT. Run writes one at a time.
+  let writeQueue: Promise<unknown> = Promise.resolve();
+  function withWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+    const result = writeQueue.then(fn);
+    writeQueue = result.catch(() => { }); // keep the queue alive after a failure
+    return result;
+  }
 
   app.listen(port);
 };

@@ -10,6 +10,7 @@ export type MatrixEvent = {
 export const DAILY = "daily";
 export const WEEKLY = "weekly";
 export const MONTHLY = "monthly";
+export const FREQUENCIES = [DAILY, WEEKLY, MONTHLY];
 
 export type Email = { address: string; subject: string; text: string };
 

@@ -1,35 +1,22 @@
+import { type Frequency } from "../types";
+
 const { origin, pathname } = window.location;
 const BASE_URL = `${origin}${pathname}`;
 
-export async function getEvents(roomId: string) {
-    const eventsResponse = await fetch(`${BASE_URL}/api/events?roomId=${roomId}`);
-    const eventsResult = await eventsResponse.json();
+export type EmailLists = Record<Frequency, string[]>;
 
-    return eventsResult;
+export async function getEmails(roomId: string): Promise<Partial<EmailLists>> {
+    const res = await fetch(`${BASE_URL}/api/emails?roomId=${encodeURIComponent(roomId)}`);
+    if (!res.ok) throw new Error(`Failed to load emails: ${res.status}`);
+    return res.json();
 }
 
-export async function postEvent(roomId: string, url: string) {
-    const eventsResponse = await fetch(`${BASE_URL}/api/event?roomId=${roomId}`, {
-        method: "POST",
-        body: JSON.stringify({ url }),
-        headers: {
-            "Content-Type": "application/json"
-        }
+export async function updateEmails(roomId: string, emails: string[], frequency: Frequency) {
+    const res = await fetch(`${BASE_URL}/api/emails?roomId=${encodeURIComponent(roomId)}`, {
+        method: "PUT",
+        body: JSON.stringify({ roomId, emails, frequency }),
+        headers: { "Content-Type": "application/json" },
     });
-    const eventsResult = await eventsResponse.json();
-
-    return eventsResult;
-}
-
-export async function deleteEvent(roomId: string, url: string) {
-    const eventsResponse = await fetch(`${BASE_URL}/api/event?roomId=${roomId}`, {
-        method: "DELETE",
-        body: JSON.stringify({ url }),
-        headers: {
-            "Content-Type": "application/json"
-        }
-    });
-    const eventsResult = await eventsResponse.json();
-
-    return eventsResult;
+    if (!res.ok) throw new Error(`Failed to save emails: ${res.status}`);
+    return res.json();
 }

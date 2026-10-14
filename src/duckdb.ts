@@ -74,4 +74,29 @@ export async function removeEmail(roomId: string, emailAddress: string) {
     return;
 }
 
+export async function replaceEmails(
+    roomId: string,
+    emailAddresses: string[],
+    frequency: Frequency
+) {
+    await connection.run("BEGIN TRANSACTION");
+    try {
+        const del = await connection.prepare(
+            `DELETE FROM Emails WHERE room_id = $1 AND frequency = $2;`
+        );
+        del.bindVarchar(1, roomId);
+        del.bindVarchar(2, frequency);
+        await del.run();
+
+        for (const address of emailAddresses) {
+            await insertEmail(roomId, address, frequency);
+        }
+
+        await connection.run("COMMIT");
+    } catch (err) {
+        await connection.run("ROLLBACK");
+        throw err;
+    }
+}
+
 startDuckDB();
