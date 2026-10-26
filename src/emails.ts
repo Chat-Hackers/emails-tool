@@ -22,6 +22,9 @@ async function getDigest(room_id: string, since: Temporal.Instant) {
     const eventsResult = await eventsResponse.json();
     const { events, roomName } = eventsResult as { events: MatrixEvent[], roomName: string };
 
+    if (events.length === 0)
+        return { digest: "", groupName: roomName };
+
     const messages = events.filter(event => event.type === "m.room.message").map(event => (`{ from: ${event.sender}, content: ${event.content.body} }`)).reverse();
 
     const digestResponse = await generateSummary(messages.join(","));
@@ -90,6 +93,8 @@ async function prepareEmails(): Promise<Email[]> {
             if (!addresses?.length) continue;
 
             const { groupName, digest } = await digestFetchers[frequency](roomId);
+
+            if (digest === "") continue;
 
             const subject = `${frequencyLabels[frequency]} Digest of ${groupName}`;
 
