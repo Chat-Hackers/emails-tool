@@ -12,7 +12,7 @@ const { emails_secret } = process.env;
 
 const port = 5056;
 
-const moduleRegistration = {
+const toolRegistration = {
   id: "emails",
   uuid: uuidv4(),
   url: `http://localhost:${port}`,
@@ -21,13 +21,11 @@ const moduleRegistration = {
   title: "Email Summaries",
   description: "Sends daily/weekly/monthly email summaries of the chat",
   emails_secret,
-  event_types: [
-    "m.room.message"
-  ]
+  event_types: {}
 }
 
 function generateRegistrationFile() {
-  fs.writeFileSync(`./${moduleRegistration.id}.json`, JSON.stringify(moduleRegistration, null, 2));
+  fs.writeFileSync(`./${toolRegistration.id}.json`, JSON.stringify(toolRegistration, null, 2));
 }
 
 async function start() {
